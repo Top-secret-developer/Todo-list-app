@@ -1,61 +1,71 @@
 import { Request, Response } from 'express';
-import { db } from '../database/db';
+import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
+import { Todo } from '../models/todoModel';
 
-export const getAllTodos = (req: Request, res: Response) => {
-  db.query('SELECT * FROM todos', (err, results) => {
-    if (err) {
-      console.error('Error fetching todos:', err);
-      res.status(500).send('Error fetching todos');
-      return;
-    }
-    res.json(results);
-  });
+//importing our json files
+const TODOS_FILE_PATH = path.join(__dirname, '../data/todos.json');
+
+//reading files in jsom
+function readTodosFromFile(): Todo[] {
+  const todosData = fs.readFileSync(TODOS_FILE_PATH, 'utf-8');
+  return JSON.parse(todosData);
+}
+
+//writing files in json
+function writeTodosToFile(todos: Todo[]): void {
+  fs.writeFileSync(TODOS_FILE_PATH, JSON.stringify(todos, null, 2));
+}
+
+//getAllTodos
+export const getAllTodos = (req: Request, res: Response): void => {
+  const todos = readTodosFromFile();
+  res.json(todos);
+};
+//getting Todo by a unique Id
+export const getTodoById = (req: Request, res: Response): void => {
+  const todos = readTodosFromFile();
+  res.json(todos);
 };
 
-export const createTodo = (req: Request, res: Response) => {
-  const { text } = req.body;
-  if (!text) {
-    res.status(400).send('Text is required');
-    return;
+// creating 
+export const createTodo = (req: Request, res: Response): void => {
+  const { description } = req.body;
+  const newTodo: Todo = {
+    id: uuidv4(),
+    description,
+    completed: false
+  };
+  const todos = readTodosFromFile();
+  todos.push(newTodo);
+  writeTodosToFile(todos);
+  res.status(201).json(newTodo);
+};
+
+export const updateTodo = (req: Request, res: Response): void => {
+  const { description, completed } = req.body;
+  const todos = readTodosFromFile();
+  const index = todos.findIndex(todo => todo.id === req.params.id);
+  if (index !== -1) {
+    todos[index].description = description;
+    todos[index].completed = completed;
+    writeTodosToFile(todos);
+    res.json(todos[index]);
+  } else {
+    res.status(404).json({ message: 'Todo not found' });
   }
-
-  db.query('INSERT INTO todos (text) VALUES (?)', [text], (err, result) => {
-    if (err) {
-      console.error('Error creating todo:', err);
-      res.status(500).send('Error creating todo');
-      return;
-    }
-    res.status(201).send('Todo created successfully');
-  });
 };
 
-export const deleteTodo = (req: Request, res: Response) => {
-  const id = req.params.id;
 
-  db.query('DELETE FROM todos WHERE id = ?', [id], (err, result) => {
-    if (err) {
-      console.error('Error deleting todo:', err);
-      res.status(500).send('Error deleting todo');
-      return;
-    }
-    res.status(200).send('Todo deleted successfully');
-  });
-};
-
-export const updateTodo = (req: Request, res: Response) => {
-  const id = req.params.id;
-  const { text } = req.body;
-  if (!text) {
-    res.status(400).send('Text is required');
-    return;
+export const deleteTodo = (req: Request, res: Response): void => {
+  const todos = readTodosFromFile();
+  const index = todos.findIndex(todo => todo.id === req.params.id);
+  if (index !== -1) {
+    const deletedTodo = todos.splice(index, 1)[0];
+    writeTodosToFile(todos);
+    res.json(deletedTodo);
+  } else {
+    res.status(404).json({ message: 'Todo not found' });
   }
-
-  db.query('UPDATE todos SET text = ? WHERE id = ?', [text, id], (err, result) => {
-    if (err) {
-      console.error('Error updating todo:', err);
-      res.status(500).send('Error updating todo');
-      return;
-    }
-    res.status(200).send('Todo updated successfully');
-  });
 };
