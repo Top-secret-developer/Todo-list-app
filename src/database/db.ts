@@ -1,10 +1,11 @@
-import { createConnection, Connection } from 'mysql';
+import { createConnection, Connection } from 'mysql2';
+const mysql = require("mysql2)
 
 export const db: Connection = createConnection({
   host: '127.0.0.1',
   user: 'root',
-  password: 'Marvelous555#',
-  database: 'Todo'
+  password: '',
+  database: 'todo-app'
 });
 
 db.connect(err => {
